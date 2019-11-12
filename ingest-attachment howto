@@ -73,3 +73,11 @@ Stop Elasticsearch
     ]
   }
 }
+
+
+For large files, Curl is going to bitch that the arugment list is too long.
+base64 -w 0 <filename> > test.json. Need the -w0 otherwise base64 will put in line breaks every 76 characters
+Edit the file so it looks like JSON:
+{"data":"<base 64 string>"}
+Then:
+    curl -X PUT -H "Content-Type: application/json" "localhost:9200/test/_docs/2?pipeline=mcboatface" -d @test.json
