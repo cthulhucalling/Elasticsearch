@@ -1,0 +1,75 @@
+Indexing attachments
+
+Stop Elasticsearch
+1. Install ingest-attachment plugin
+    /usr/share/elasticsearch/bin/elasticsearch-plugin install ingest-attachment
+    
+2. Start Elasticsearch
+
+3. Build a pipeline to the ingest-attachment plugin
+    curl -X PUT -H "Content-Type: application/json" "localhost:9200/_ingest/pipeline/mcboatface" -d'
+         {
+          "description":"Extract attachment information",
+          "processors":[
+               {
+                "attachment":{
+                     "field":"data",
+                     "indexed_chars":-1
+                 }
+               }
+          ]
+        }'
+   This will create a pipeline called "mcboatface" that will pipe the data to the ingest-attachment plugin. 
+   Attachment data will go into the "data" field (actually the "attachment.data" field as we will see later")
+   
+   4. Attachments to be indexed must be Base64 encoded before going into ES.
+        echo "Lorum ipsum blah blah blah" > test.txt
+        base64 test.txt
+        TG9ydW0gaXBzdW0gYmxhaCBibGFoIGJsYWgK
+        
+   5. PUT the data into ES:
+        curl -X PUT -H "Content-Type: application/json" "localhost:9200/<my index>/_doc/<id>?pipeline=mcboatface" -d'
+             {
+              "data":"TG9ydW0gaXBzdW0gYmxhaCBibGFoIGJsYWgK"
+             }'
+   6. Now the attachment contents have been indexed and is searchable. The key here is that we're matching "attachment.content":
+      curl -X GET -H "Content-Type: application/json" "localhost:9200/test/_search?pretty" -d'
+       { "query":{
+         "match":{"attachment.content":"blah"}
+        }
+      }'
+      
+{
+  "took" : 1,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 1,
+    "successful" : 1,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 1,
+      "relation" : "eq"
+    },
+    "max_score" : 0.45207188,
+    "hits" : [
+      {
+        "_index" : "test",
+        "_type" : "_doc",
+        "_id" : "1",
+        "_score" : 0.45207188,
+        "_source" : {
+          "data" : "TG9ydW0gaXBzdW0gYmxhaCBibGFoIGJsYWgK",
+          "attachment" : {
+            "content_type" : "text/plain; charset=ISO-8859-1",
+            "language" : "is",
+            "content" : "Lorum ipsum blah blah blah",
+            "content_length" : 28
+          }
+        }
+      }
+    ]
+  }
+}
